@@ -16,7 +16,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { PhotoCamera, Add as AddIcon, Delete as DeleteIcon, Restaurant, CloudUpload } from '@mui/icons-material';
-import axios from 'axios';
+import { postsAPI } from '../utils/axios';
 
 interface Ingredient {
   name: string;
@@ -46,7 +46,7 @@ const AddPost: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await axios.post(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/posts/upload`, formData);
+      const response = await postsAPI.upload(formData);
       setPhoto(response.data.url);
       setError(null);
     } catch (err) {
@@ -139,15 +139,15 @@ const AddPost: React.FC = () => {
       };
 
       console.log('Submitting post data:', postData);
-      const response = await axios.post(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/posts`, postData);
+      const response = await postsAPI.create(postData);
       console.log('Post created successfully:', response.data);
       
       // Navigate to home page after successful post creation
       navigate('/');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error creating post:', err);
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.error || 'Failed to create post. Please try again.');
+      if (err.response?.data?.error) {
+        setError(err.response.data.error || 'Failed to create post. Please try again.');
       } else {
         setError('Failed to create post. Please try again.');
       }

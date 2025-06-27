@@ -21,7 +21,7 @@ import {
   Chip,
 } from '@mui/material';
 import { Person as PersonIcon, Restaurant as RestaurantIcon, Message as MessageIcon } from '@mui/icons-material';
-import axios from 'axios';
+import { chatAPI } from '../utils/axios';
 
 interface Chat {
   _id: string;
@@ -63,12 +63,12 @@ const Messages: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/chat/user/${user._id}`);
+        const response = await chatAPI.getUserChats(user._id);
         setChats(response.data);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching chats:', err);
-        if (axios.isAxiosError(err)) {
-          setError(err.response?.data?.error || 'Failed to load conversations. Please try again later.');
+        if (err.response?.data?.error) {
+          setError(err.response.data.error || 'Failed to load conversations. Please try again later.');
         } else {
           setError('Failed to load conversations. Please try again later.');
         }
@@ -99,14 +99,10 @@ const Messages: React.FC = () => {
         text: message
       });
 
-      await axios.post(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/chat/${selectedChat.post._id}/message`, {
-        sender: user._id,
-        receiver: otherUser._id,
-        text: message
-      });
+      await chatAPI.sendMessage(selectedChat.post._id, user._id, otherUser._id, message);
 
       // Refresh the selected chat
-      const chatResponse = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/chat/${selectedChat.post._id}/${user._id}/${otherUser._id}`);
+      const chatResponse = await chatAPI.getChat(selectedChat.post._id, user._id, otherUser._id);
       const updatedChat = { ...selectedChat, messages: chatResponse.data };
       setSelectedChat(updatedChat);
       
@@ -116,12 +112,12 @@ const Messages: React.FC = () => {
       ));
       
       setMessage('');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to send message:', err);
-      if (axios.isAxiosError(err)) {
-        console.error('Response data:', err.response?.data);
-        console.error('Response status:', err.response?.status);
-        setError(`Failed to send message: ${err.response?.data?.error || err.message}`);
+      if (err.response?.data) {
+        console.error('Response data:', err.response.data);
+        console.error('Response status:', err.response.status);
+        setError(`Failed to send message: ${err.response.data.error || err.message}`);
       } else {
         setError('Failed to send message. Please try again.');
       }

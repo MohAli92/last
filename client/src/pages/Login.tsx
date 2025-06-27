@@ -8,7 +8,7 @@ import {
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import axios from 'axios';
+import { authAPI } from '../utils/axios';
 import { Email, Lock, Person, Wc, CalendarToday, Phone } from '@mui/icons-material';
 
 const Login: React.FC = () => {
@@ -53,7 +53,7 @@ const Login: React.FC = () => {
     }
     setLoading(true);
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/auth/send-whatsapp-code`, { phone });
+      await authAPI.sendWhatsAppCode(phone);
       setCodeSent(true);
     } catch (err: any) {
       setError('Failed to send WhatsApp code. Please try again.');
@@ -70,7 +70,7 @@ const Login: React.FC = () => {
     }
     setLoading(true);
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/auth/verify-whatsapp-code`, { phone, code: whatsAppCode });
+      await authAPI.verifyWhatsAppCode(phone, whatsAppCode);
       setCodeVerified(true);
     } catch (err: any) {
       setError('Invalid or expired code. Please try again.');

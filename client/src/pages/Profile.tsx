@@ -18,7 +18,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { Person, Edit, Delete, Save, Cancel } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { usersAPI } from '../utils/axios';
 
 interface UserProfile {
   _id: string;
@@ -51,7 +51,7 @@ const Profile: React.FC = () => {
       console.log('Fetching user data for user ID:', user._id);
       
       // Fetch the full profile using the user ID from AuthContext
-      const profileResponse = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/users/${user._id}`);
+      const profileResponse = await usersAPI.getById(user._id);
       console.log('Profile data response:', profileResponse.data);
       
       setProfile(profileResponse.data);
@@ -80,16 +80,16 @@ const Profile: React.FC = () => {
     setSuccess(null);
 
     try {
-      const response = await axios.put(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/users/${profile._id}`, profile);
+      const response = await usersAPI.update(profile._id, profile);
       if (response.data) {
         setProfile(response.data);
         setSuccess('Profile updated successfully!');
         setEditing(false);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error updating profile:', err);
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.error || 'Failed to update profile. Please try again.');
+      if (err.response?.data?.error) {
+        setError(err.response.data.error || 'Failed to update profile. Please try again.');
       } else {
         setError('Failed to update profile. Please try again.');
       }
@@ -112,7 +112,7 @@ const Profile: React.FC = () => {
       
       // Delete user from MongoDB
       console.log('Deleting user from MongoDB...');
-      await axios.delete(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/users/${profile._id}`);
+      await usersAPI.delete(profile._id);
       console.log('MongoDB user deleted successfully');
 
       setSuccess('Account deleted successfully');
@@ -127,13 +127,13 @@ const Profile: React.FC = () => {
 
     } catch (err: any) {
       console.error('Error deleting account:', err);
-      if (axios.isAxiosError(err)) {
+      if (err.response?.data) {
         console.error('Axios error details:', {
-          status: err.response?.status,
-          data: err.response?.data,
+          status: err.response.status,
+          data: err.response.data,
           message: err.message
         });
-        setError(`Failed to delete account: ${err.response?.data?.error || err.message}`);
+        setError(`Failed to delete account: ${err.response.data.error || err.message}`);
       } else {
         setError(`Failed to delete account: ${err.message}`);
       }

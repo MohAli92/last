@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { postsAPI, chatAPI } from '../utils/axios';
 import { Box, Typography, Paper, Button, CircularProgress, Chip, Grid, Card, CardContent, CardMedia } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 import { Message as MessageIcon, LocationOn, AccessTime, Restaurant } from '@mui/icons-material';
@@ -35,7 +35,7 @@ const PostDetails: React.FC = () => {
     const fetchPost = async () => {
       setLoading(true);
       try {
-        const postRes = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/posts`);
+        const postRes = await postsAPI.getAll();
         const found = postRes.data.find((p: Post) => p._id === id);
         setPost(found);
       } catch (err) {
@@ -51,11 +51,7 @@ const PostDetails: React.FC = () => {
     if (!user?._id || !post || !post.user?._id) return;
     try {
       // Create or fetch the chat
-      const response = await axios.post(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/chat/start`, {
-        postId: post._id,
-        userId1: user._id,
-        userId2: post.user._id,
-      });
+      const response = await chatAPI.startChat(post._id, user._id, post.user._id);
       // Navigate to messages and pass chatId in state
       navigate('/messages', { state: { chatId: response.data._id } });
     } catch (err) {
@@ -67,7 +63,7 @@ const PostDetails: React.FC = () => {
     if (!post || !user?._id) return;
     
     try {
-      await axios.patch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/posts/${post._id}/reserve`);
+      await postsAPI.reserve(post._id);
       setPost({ ...post, reserved: true });
     } catch (err) {
       setError('Failed to reserve post.');
@@ -78,7 +74,7 @@ const PostDetails: React.FC = () => {
     if (!post || !user?._id) return;
     
     try {
-      await axios.delete(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/posts/${post._id}`);
+      await postsAPI.delete(post._id);
       navigate('/');
     } catch (err) {
       setError('Failed to delete post.');

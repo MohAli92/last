@@ -5,8 +5,31 @@ require('dotenv').config();
 
 const app = express();
 
-app.use(cors());
-app.use(express.json());
+// Improved CORS configuration
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: false,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  optionsSuccessStatus: 200
+}));
+
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`📨 ${req.method} ${req.path}`, {
+    body: req.body,
+    query: req.query,
+    headers: {
+      'content-type': req.headers['content-type'],
+      'authorization': req.headers.authorization ? 'Bearer ***' : 'None'
+    }
+  });
+  next();
+});
 
 // Import and use routes
 const authRoutes = require('./routes/auth');
@@ -26,8 +49,32 @@ app.use('/api/chat', chatRoutes);
 
 app.use('/uploads', express.static('uploads'));
 
+// Health check endpoint
 app.get('/', (req, res) => {
-  res.send('Share Dish API is running');
+  res.json({ 
+    message: 'Share Dish API is running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('🚨 Server Error:', err);
+  res.status(500).json({ 
+    error: 'Internal server error',
+    message: err.message,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({ 
+    error: 'Route not found',
+    path: req.originalUrl,
+    method: req.method
+  });
 });
 
 const http = require('http');
@@ -35,7 +82,12 @@ const { Server } = require('socket.io');
 
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
-console.log('Using MONGO_URI:', MONGO_URI);
+console.log('🔧 Server Configuration:', {
+  PORT,
+  MONGO_URI: MONGO_URI ? 'Set' : 'Not set',
+  FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
+  NODE_ENV: process.env.NODE_ENV || 'development'
+});
 
 // Connect to MongoDB with updated options
 mongoose.connect(MONGO_URI, {
@@ -46,22 +98,24 @@ mongoose.connect(MONGO_URI, {
   }
 })
 .then(() => {
-  console.log('Connected to MongoDB');
+  console.log('✅ Connected to MongoDB');
   const server = http.createServer(app);
   const io = new Server(server, {
     cors: {
-      origin: '*', // In production, set this to your frontend URL
-      methods: ['GET', 'POST']
+      origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+      methods: ['GET', 'POST'],
+      credentials: false
     }
   });
 
   // Socket.io logic
   io.on('connection', (socket) => {
-    console.log('A user connected:', socket.id);
+    console.log('🔌 User connected:', socket.id);
 
     // Join a chat room for a specific post
     socket.on('joinRoom', ({ postId }) => {
       socket.join(postId);
+      console.log(`👥 User ${socket.id} joined room: ${postId}`);
     });
 
     // Handle sending a message
@@ -82,21 +136,26 @@ mongoose.connect(MONGO_URI, {
           text,
           createdAt: new Date()
         });
+        console.log(`💬 Message sent in room ${postId}: ${text}`);
       } catch (error) {
-        console.error('Error saving message:', error);
+        console.error('❌ Error saving message:', error);
         socket.emit('error', { message: 'Failed to save message' });
       }
     });
 
     socket.on('disconnect', () => {
-      console.log('User disconnected:', socket.id);
+      console.log('🔌 User disconnected:', socket.id);
     });
   });
 
-  server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  server.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🌐 API available at: http://localhost:${PORT}`);
+    console.log(`📱 Frontend should be at: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
+  });
 })
 .catch(err => {
-  console.error('MongoDB connection error:', err);
-  console.log('Please make sure MongoDB is installed and running, or provide a valid MONGO_URI in the .env file');
+  console.error('❌ MongoDB connection error:', err);
+  console.log('💡 Please make sure MongoDB is installed and running, or provide a valid MONGO_URI in the .env file');
   process.exit(1);
 });
